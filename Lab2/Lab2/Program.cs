@@ -6,13 +6,13 @@ namespace Lab2
     {
         static void Main(string[] args)
         {
-            SystemCore systemCore = new SystemCore(new Random().Next() % 3 + 1);
+            SystemCore systemCore = new SystemCore(new Random().Next(2, 4));
 
-            int TimeWithoutInterrapting = systemCore.StartPlannigProcessWithoutInterrupting();
-            int TimeWithInterrapting = systemCore.StartPlannigProcessWithInterrupting();
+            int TimeWithoutInterrapting = systemCore.StartPlanProcessWithoutInterrupting();
+            int TimeWithInterrapting = systemCore.StartPlanProcessWithInterrupting();
 
-            Console.WriteLine("\n\nЗатраченное время без прерываний: " + TimeWithoutInterrapting + "\n\n");
-            Console.WriteLine("\n\nЗатраченное время c прерываниями: " + TimeWithInterrapting + "\n\n");
+            Console.WriteLine("\n\nЗатраченное время выполнения планировщика без прерываний: " + TimeWithoutInterrapting);
+            Console.WriteLine("\n\nЗатраченное время выполнения планировщика c прерываниями: " + TimeWithInterrapting);
         }
     }
 }

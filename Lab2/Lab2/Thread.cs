@@ -9,93 +9,75 @@ namespace Lab2
         public int ProcessId { get; private set; }
 
         public int ThreadExecutionTime;
-        public int _ThreadExecutionTime
+
+        public int threadExecutionTime
         {
-            get { 
-                if (!HasInputOutput) { return ThreadExecutionTime; }
-                else { return IOWaitingTime; } } 
-            private set { ThreadExecutionTime = value; }
+            get { if (!hasInputOutput || IOWatingCount <= 0) { return ThreadExecutionTime; } else { return IOWaitingTime; } }
+            set { ThreadExecutionTime = value; }
         }
 
-        public int TimeOfOneIteration { get; private set; }
+        public int timeOfOneIteration { get; private set; }
 
-        private bool HasInputOutput;
+        public bool hasInputOutput { get; set; }
 
-        private int IOWaitingTime;
+        public int IOWaitingTime { get; set; }
 
-        public Thread(int threadId, int processId, bool hasInputOutput, bool displayLabel)
+        public int IOWatingCount { get; set; }
+
+        public Thread(int threadId, int processId, bool hasInputOutput, int OneIteration, int ExecutionTime, int IOWating, int IOWatingCount, bool print)
         {
-            _ThreadExecutionTime = (new Random().Next() % 25) + 10;
-            TimeOfOneIteration = (new Random().Next() % 8) + 3;
+            threadExecutionTime = ExecutionTime;
+            timeOfOneIteration = OneIteration;
             this.ThreadId = threadId;
             this.ProcessId = processId;
-            this.HasInputOutput = hasInputOutput;
+            this.hasInputOutput = hasInputOutput;
             if (hasInputOutput)
             {
-                IOWaitingTime = (new Random().Next() % 21) + 10;
+                this.IOWaitingTime = IOWating;
+                this.IOWatingCount = IOWatingCount;
             }
-            if (displayLabel)
+            if (print)
             {
-                Console.WriteLine("ThreadId: " + threadId + (hasInputOutput ? " Есть IO" : " Нет IO") + ";ExecutionTime:" + _ThreadExecutionTime + ";IterationTime:" + TimeOfOneIteration);
+                Console.WriteLine("\nСоздаем поток. TID: " + threadId + (hasInputOutput ? " Есть ввод/вывод." : " Нет ввода/вывода.")
+                    + (hasInputOutput ? " Количество взаимодействий с утройством ввода/вывода: " + IOWatingCount : "")
+                    + ".\nВремя выполнения " + threadExecutionTime
+                    + ". Время одной итерации " + timeOfOneIteration);
             }
         }
 
         public void Start()
         {
-            Console.WriteLine("ProcessId: " + ProcessId + ",ThreadId: " + ThreadId);
-            Console.WriteLine("ExecutionTime: " + (HasInputOutput ? IOWaitingTime : _ThreadExecutionTime));
+            Console.WriteLine("Начинаем поток. PID: " + ProcessId + ", TID: " + ThreadId);
+            Console.WriteLine("Нужно времени для выполнения: " + threadExecutionTime);
         }
 
-        public int RunWithoutInterrupting()
+        public int StartWithoutInterrupting()
         {
-            if (HasInputOutput)
+            if (hasInputOutput && --IOWatingCount >= 0)
             {
-                int spentTime = IOWaitingTime;
-                IOWaitingTime = 0;
-                return spentTime;
+                return IOWaitingTime;
             }
+            threadExecutionTime -= timeOfOneIteration;
+            return timeOfOneIteration;
 
+        }
+
+        public int StartWithInterrupting()
+        {
+            if (hasInputOutput && --IOWatingCount >= 0)
+            {
+                return -1;
+            }
             else
             {
-                _ThreadExecutionTime -= TimeOfOneIteration;
-                return TimeOfOneIteration;
+                threadExecutionTime -= timeOfOneIteration;
+                return timeOfOneIteration;
             }
-        }
-
-        public int RunWithInterrupting()
-        {
-            if (HasInputOutput)
-            {
-
-                if (IOWaitingTime > TimeOfOneIteration)
-                {
-                    IOWaitingTime -= TimeOfOneIteration;
-                    return -1;
-                }
-                else
-                {
-                    int spentedTime = IOWaitingTime;
-                    IOWaitingTime = 0;
-                    return spentedTime;
-                }
-
-            }
-
-            else
-            {
-                _ThreadExecutionTime -= TimeOfOneIteration;
-                return TimeOfOneIteration;
-            }
-        }
-
-        public void SubtractIOWaitingTime(int time)
-        {
-            IOWaitingTime -= time;
         }
 
         public object Clone()
         {
-            return new Thread(ThreadId, ProcessId, HasInputOutput, true);
+            return new Thread(ThreadId, ProcessId, hasInputOutput, timeOfOneIteration, threadExecutionTime, IOWaitingTime, IOWatingCount, false);
         }
     }
 }

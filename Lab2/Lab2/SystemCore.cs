@@ -9,38 +9,30 @@ namespace Lab2
         List<Process> Processes;
         Dictionary<int, List<Thread>> Threads;
 
-        private int MaxTimeOfThreads = 50;
+        private int maxTimeOfThreads = 30;
 
-        List<Thread> BlockThreads = new List<Thread>();
+        private bool ProcessEnd = false;
 
-        public SystemCore(int x)
+        public SystemCore(int n)
         {
             Processes = new List<Process>();
             Threads = new Dictionary<int, List<Thread>>();
-
-            for (int i = 0; i < x; i++)
+            Random rand = new Random();
+            int timeOfOneIteration = rand.Next(5, 11);
+            for (int i = 0; i < n; i++)
             {
-                Processes.Add(new Process(Processes.Count, true));
-                CreateThreads(Processes.Count - 1);
+                Process process = new Process(i, rand.Next(1, 4), timeOfOneIteration);
+                Processes.Add(process);
+                Threads.Add(i, process.Threads);
             }
         }
 
-        public void CreateThreads(int pid)
-        {
-            List<Thread> threads = new List<Thread>();
-            for (int i = 0; i < new Random().Next() % 2 + 1; i++)
-            {
-                threads.Add(Processes[Processes.Count - 1].CreateThread(threads.Count));
-            }
-            Threads.Add(pid, threads);
-        }
-
-        public int StartPlannigProcessWithoutInterrupting()
+        public int StartPlanProcessWithoutInterrupting()
         {
             var processes = Processes.Select(x => x).ToList();
-            var threads = Threads.ToDictionary(x => x.Key, x => x.Value.Select(x => (Thread)x.Clone()).ToList());
+            var threads = Threads.ToDictionary(x => x.Key, x => x.Value.Select(x => (Thread)x.Clone()).ToList()); 
 
-            Console.WriteLine("\nПланирование процессов без прерываний\n");
+            Console.WriteLine("\n\nПланирование процессов без прерываний\n\n");
 
             int fullExecutionTime = 0;
 
@@ -49,14 +41,15 @@ namespace Lab2
                 for (int i = 0; i < processes.Count; i++)
                 {
 
-                    processes[i].Start();
+                    processes[i].Start(); 
 
-                    int temp = StartPlannigThreadWithoutInterrupting(processes[i].ProcessId, threads);
+                    int temp = StartPlanThreadWithoutInterrupting(processes[i].ProcessId, threads); //затраченное на процесс время
 
                     fullExecutionTime += temp;
 
                     if (temp == 0)
                     {
+                        Console.WriteLine("Удаляем процесс: " + processes[i].ProcessId);
                         processes.RemoveAt(i); 
                         break;
                     }
@@ -69,10 +62,9 @@ namespace Lab2
             }
         }
 
-        public int StartPlannigThreadWithoutInterrupting(int pid, Dictionary<int, List<Thread>> threads)
+        public int StartPlanThreadWithoutInterrupting(int pid, Dictionary<int, List<Thread>> threads)
         {
-
-            int temp = 0;
+            int temp = 0;//затраченное на процессы время
             while (true)
             {
                 for (int i = 0; i < threads[pid].Count; i++)
@@ -80,18 +72,35 @@ namespace Lab2
 
                     threads[pid][i].Start();
 
-                    temp += threads[pid][i].RunWithoutInterrupting();
+                    int time = threads[pid][i].StartWithoutInterrupting();
+                    temp += time;
 
-                    if (threads[pid][i]._ThreadExecutionTime <= 0)
+                    if (threads[pid][i].hasInputOutput && threads[pid][i].IOWatingCount >= 0)
                     {
+                        Console.WriteLine($"Время ожидания потока: {time}, Осталось взаимодейсвий с устройством ввода/вывода: {threads[pid][i].IOWatingCount}");
+                        Console.WriteLine($"Затраченное на поток время: {time}");
+                        Console.WriteLine($"Затраченное на процесс время: {temp}. (Максимальное время итерации процесса {maxTimeOfThreads})\n");
+                        if (temp >= maxTimeOfThreads)
+                        {
+                            Console.WriteLine("Выхожу из планировщика потоков\n");
+                            return temp;
+                        }
+                        break;
+                    }
+
+                    Console.WriteLine($"Затраченное на поток время: {time}");
+                    Console.WriteLine($"Затраченное на процесс время: {temp}. (Максимальное время итерации процесса {maxTimeOfThreads})\n");
+
+                    if (threads[pid][i].threadExecutionTime <= 0)
+                    {
+                        Console.WriteLine("Удаляем поток: " + threads[pid][i].ThreadId);
                         threads[pid].RemoveAt(i);
                         i--;
                     }
 
-                    Console.WriteLine($"Затраченное на процесс время:{temp}. (Максимальное время итерации процесса {MaxTimeOfThreads})\n");
-
-                    if (temp >= MaxTimeOfThreads)
+                    if (temp >= maxTimeOfThreads)
                     {
+                        Console.WriteLine("Выхожу из планировщика потоков\n");
                         return temp;
                     }
                 }
@@ -103,12 +112,12 @@ namespace Lab2
             }
         }
 
-        public int StartPlannigProcessWithInterrupting()
+        public int StartPlanProcessWithInterrupting()
         {
             var processes = Processes.Select(x => x).ToList();
-            var threads = Threads.ToDictionary(x => x.Key, x => x.Value.Select(x => (Thread)x.Clone()).ToList());
+            var threads = Threads.ToDictionary(x => x.Key, x => x.Value.Select(x => (Thread)x.Clone()).ToList()); 
 
-            Console.WriteLine("\nПланирование процессов с прерываниями\n");
+            Console.WriteLine("\n\nПланирование процессов с прерываниями\n\n");
 
             int fullExecutionTime = 0;
 
@@ -118,12 +127,13 @@ namespace Lab2
                 {
                     processes[i].Start();
 
-                    int temp = StartPlannigThreadWithInterrupting(processes[i].ProcessId, threads);
+                    int temp = StartPlanThreadWithInterrupting(processes[i].ProcessId, threads);//затраченное на процесс время
 
                     fullExecutionTime += temp;
 
-                    if (temp == 0)
+                    if (ProcessEnd)
                     {
+                        Console.WriteLine("Удаляем процесс: " + processes[i].ProcessId);
                         processes.RemoveAt(i);
                         break;
                     }
@@ -136,75 +146,54 @@ namespace Lab2
             }
         }
 
-        public int StartPlannigThreadWithInterrupting(int pid, Dictionary<int, List<Thread>> threads)
-        {
 
-            int temp = 0;
+        public int StartPlanThreadWithInterrupting(int pid, Dictionary<int, List<Thread>> threads)
+        {
+            ProcessEnd = false;
+            int temp = 0;//затраченное на процессы время
             while (true)
             {
                 for (int i = 0; i < threads[pid].Count; i++)
                 {
-                    if (BlockThreads.Contains(threads[pid][i]))
-                    {
-                        if (threads[pid][i]._ThreadExecutionTime <= 0)
-                        {
-                            BlockThreads.Remove(threads[pid][i]);
-                            threads[pid].RemoveAt(i);
-                            i--;
-                        }
-                        continue;
-                    }
 
-                    threads[pid][i].Start(); 
+                    threads[pid][i].Start();
 
-                    int resultOfRunning = threads[pid][i].RunWithInterrupting(); 
-
-                    foreach (Thread blockedThread in BlockThreads)
-                    {
-                        blockedThread.SubtractIOWaitingTime(resultOfRunning);
-                    }
+                    int resultOfRunning = threads[pid][i].StartWithInterrupting();
 
                     if (resultOfRunning == -1)
                     {
-                        temp += threads[pid][i].TimeOfOneIteration;
-                        BlockThreads.Add(threads[pid][i]); 
+                        Console.WriteLine($"Осталось взаимодейсвий с устройством ввода/вывода: {threads[pid][i].IOWatingCount}");
+                        Console.WriteLine($"Затраченное на процесс время: {temp}. (Максимальное время итерации процесса {maxTimeOfThreads})\n");
+                        return temp;
                     }
                     else if (resultOfRunning >= 0)
                     {
+                        Console.WriteLine($"Затраченное на поток время: {resultOfRunning}");
                         temp += resultOfRunning;
                     }
 
-                    if (threads[pid][i]._ThreadExecutionTime <= 0)
+                    if (threads[pid][i].threadExecutionTime <= 0)
                     {
+                        Console.WriteLine("Удаляем поток: " + threads[pid][i].ThreadId);
                         threads[pid].RemoveAt(i);
                         i--;
                     }
 
-                    Console.WriteLine($"Затраченное на процесс время:{temp}. (Максимальное время итерации процесса {MaxTimeOfThreads})\n");
+                    Console.WriteLine($"Затраченное на процесс время: {temp}. (Максимальное время итерации процесса {maxTimeOfThreads})\n");
 
-                    if (temp >= MaxTimeOfThreads)
+                    if (temp >= maxTimeOfThreads)
                     {
+                        Console.WriteLine("Выхожу из планировщика потоков\n");
                         return temp;
                     }
                 }
 
-                bool existThreadWithoutBlocking = false;
-
-                for (int i = 0; i < threads[pid].Count; i++)
+                if (threads[pid].Count == 0)
                 {
-                    if (!BlockThreads.Contains(threads[pid][i]))
-                    {
-                        existThreadWithoutBlocking = true;
-                        break;
-                    }
-                }
-
-                if (threads[pid].Count == 0 || !existThreadWithoutBlocking)
-                {
+                    ProcessEnd = true;
                     return temp;
                 }
             }
-
         }
     }
 }

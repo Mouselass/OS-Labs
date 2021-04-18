@@ -8,23 +8,28 @@ namespace Lab2
     {
         public int ProcessId { get; private set; }
 
-        public Process(int processId, bool displayLabel)
-        {
-            this.ProcessId = processId;
-            if (displayLabel)
-            {
-                Console.WriteLine("ProcessId: " + processId);
-            }
-        }
+        public List<Thread> Threads { get; private set; }
 
-        public Thread CreateThread(int threadsSize)
+        public Process(int processId, int n, int timeOfOneIteration)
         {
-            return new Thread(threadsSize, ProcessId, new Random().Next() % 2 == 1 ? true : false, true);
+            ProcessId = processId;
+            Threads = new List<Thread>();
+            Random rand = new Random();
+            Console.WriteLine("\nСоздаем процесс. PID: " + processId + " Количество потоков: " + n);
+
+            for (int i = 0; i < n; i++)
+            {
+                bool hasIO = rand.Next(0, 2) == 1 ? true : false;
+                int threadExecutionTime = rand.Next(10, 30);
+                int IOWaitingTime = rand.Next(10, 21);
+                int IOWatingCount = rand.Next(1, 3);
+                Threads.Add(new Thread(i, processId, hasIO, timeOfOneIteration, threadExecutionTime, IOWaitingTime, IOWatingCount, true));
+            }
         }
 
         public void Start()
         {
-            Console.WriteLine("ProcessId: " + ProcessId);
+            Console.WriteLine("Начинаем процесс. PID: " + ProcessId);
         }
 
     }
